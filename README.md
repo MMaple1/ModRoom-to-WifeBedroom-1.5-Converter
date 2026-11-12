@@ -53,6 +53,15 @@ Generates clean `_manifest.txt` indexing files inside every converted folder so 
 
 ---
 
+## Prerequisites (What You Need on Your Computer)
+
+This tool is lightweight and relies entirely on standard built-in tools:
+- Python 3.8 or Higher: Download from [python.org](https://www.python.org/). During installation, make sure to check the box: "Add python.exe to PATH".
+- Zero External Packages: No `pip install` commands or extra libraries are required.
+- No Java Needed: Unlike the mobile APK patcher, this converter does not sign Android packages, so Java is not required.
+
+---
+
 ## Ways to Use
 
 ### Method 1: Drag and Drop (Easiest)
