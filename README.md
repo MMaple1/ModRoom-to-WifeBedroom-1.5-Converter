@@ -97,7 +97,7 @@ Descriptor conversion only **adds** keys and never changes a value; line endings
 
 `python -m unittest discover -s tests` runs the tests (conversion core, PNG pad/crop, descriptor rules, ModRoom's rules, and end-to-end runs on synthetic packs).
 
-The conversion core is `core/wbconv.py`. **The other converter (`WB_1.5_to_Modded`) carries an identical copy**; change both together.
+The conversion core is `core/wbconv.py`. **Four identical copies exist** (both converters, the WB Mobile Patcher's `wbp/wbconv.py` and the Custom Studio's `backend/wbconv.py`): edit the one in `Modded_to_WB_1.5_Converter_v1.1/core/` and run the patcher's `python tools/sync_wbconv.py` (`--check` only reports).
 
 ## Limits
 
