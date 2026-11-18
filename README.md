@@ -1,109 +1,36 @@
-# ModRoom to WB 1.5 Mod Converter v1.0
+# Modded to WB 1.5 Mod Converter
 
-A dedicated conversion tool that takes ModRoom / Deeproom 1.4 custom mods and converts them into Wife's Bedroom v1.5's unified `custom` folder architecture:
-- Lovers $\to$ `custom/<character_name>/` (with `custom_data.futa`)
-- Partners / Spouses $\to$ `custom/<character_name>/` (with `custom_data.spouse`)
-- Room Backgrounds $\to$ `custom/<bedroom_name>/` (with `custom_data.bedroom`)
+This converter takes character and room mods made for ModRoom, Deeproom, or FutasRoom and turns them into the unified `custom` folder format used by the original Wife's Bedroom v1.5.
 
-You can provide a full ModRoom game directory, individual category folders (`custom_futas`, `custom_wives`, or `custom_bedrooms`), multiple category folders dragged together, or individual character packs!
+## Start here
 
----
+1. Make sure Python is installed (free from python.org; check the box to add Python to PATH).
+2. Drag your mod folder (or `.zip` file) onto `Convert_to_WB_1.5.bat`, or place it in the `input/` folder.
+   If you start the `.bat` without dropping anything, it uses the `input/` folder, or asks for a path if that is empty.
+3. A command window opens. Press Enter for each question to use the recommended defaults.
+4. When finished, press any key to close the window. Converted mods will be in `output/custom/`. Copy that folder into your Wife's Bedroom v1.5 game directory.
 
-## Quick Start (3 Steps)
+**Troubleshooting:** Open `output/conversion_report.md` in any text editor. It lists every character and notes whether it was converted, padded, approximated, or skipped. Items marked *skipped* were excluded intentionally (with a reason provided). Because ModRoom animations use different frame counts, many characters cannot convert identically unless you choose approximate mode.
 
-1. Find your ModRoom 1.4 game folder, individual category folder(s) (`custom_futas`, `custom_wives`, `custom_bedrooms`), an individual character pack, or a mod `.zip` file.
-2. Drag and drop your folder(s) or `.zip` file directly onto `Convert_ModRoom_to_1.5.bat`.
-3. Press Enter when prompted.
+## The questions it asks
 
-Your converted mods will be ready in the `output/custom` folder, ready to copy straight into Wife's Bedroom v1.5!
+- **Approximate mode (`[y/N]`):** Asks whether to convert strips whose frame counts differ by dropping extra frames. The default is **No** (`N`), which converts safely without losing frames.
+- **Skip duplicate packs (`[Y/n]`):** If the same character appears more than once, only the best copy is converted; the others are listed in the report. The default is **Yes**. Nothing in your mod folder is changed.
 
----
+## What you get
 
-## What This Converter Does
+- **`output/custom/`**: The converted character and bedroom folders ready for Wife's Bedroom v1.5.
+- **`output/conversion_report.md`**: A detailed report showing what was converted exactly, padded, approximated, or skipped.
+- **Dry run output**: If using `--dry-run`, files are processed in a temporary space and only the conversion report is written, leaving destination folders completely untouched.
 
-### 1. Reorganizes Split Folders into Unified v1.5 Format
-In ModRoom and Deeproom 1.4, mods are split across separate folders like `custom_futas`, `custom_wives`, and `custom_bedrooms`.
-Wife's Bedroom v1.5 expects all custom mods to live inside a single unified `custom` folder. This tool automatically reorganizes all characters, partners, and bedrooms into their own clean self-contained packs inside `custom/`.
+## Command line
 
-### 2. Accepts Individual `custom_*` Folders
-You do not need to convert an entire game at once:
-- Drag just `custom_futas` to convert only your Lovers.
-- Drag just `custom_wives` to convert only your Partners.
-- Drag just `custom_bedrooms` to convert only your Room Backgrounds.
-- Select and drag multiple category folders together (for example, both `custom_futas` and `custom_wives`) to convert them simultaneously into a single combined `custom/` directory.
-
-### 3. Synthesizes Required v1.5 Data Headers
-Wife's Bedroom v1.5 relies on specific data header files to detect content types:
-- Lovers require `custom_data.futa`
-- Partners require `custom_data.spouse`
-- Bedrooms require `custom_data.bedroom`
-
-If a legacy ModRoom mod uses an older `.ini` file or lacks the exact header name, this tool automatically generates the required header file using the character's real name and stats.
-
-### 4. Normalizes Sprite Filenames for 100% v1.5 Parity
-In older Deeproom mods, partner/wife sprites were often named with legacy conventions (such as `custom_wife_portrait_0.png` or `custom_wife_mating_press.png`).
-Wife's Bedroom v1.5's native engine looks for `custom_portrait.png` and `custom_mating_press.png`. This tool automatically ensures both filename variants exist so your partners load and display without missing texture errors.
-
-### 5. Strips Unnecessary Art Project Files
-Mod creators sometimes leave raw project source files (`.aseprite`, `.clip`, `.pdn`, `.kra`, `.psd`, `.zip`, and `.bak`) inside character folders.
-This tool automatically filters out project files, keeping only game-ready images (`.png`), audio (`.ogg`, `.wav`, `.mp3`), and configuration files (`.ini`, `.futa`, `.json`) so your game stays clean and fast.
-
-### 6. Generates Game-Ready Manifest Indexes
-Generates clean `_manifest.txt` indexing files inside every converted folder so the mods load instantly in both desktop Wife's Bedroom v1.5 and mobile APK builds.
-
----
-
-## Prerequisites (What You Need on Your Computer)
-
-This tool is lightweight and relies entirely on standard built-in tools:
-- Python 3.8 or Higher: Download from [python.org](https://www.python.org/). During installation, make sure to check the box: "Add python.exe to PATH".
-- Zero External Packages: No `pip install` commands or extra libraries are required.
-- No Java Needed: Unlike the mobile APK patcher, this converter does not sign Android packages, so Java is not required.
-
----
-
-## Ways to Use
-
-### Method 1: Drag and Drop (Easiest)
-Drag any of the following directly onto `Convert_ModRoom_to_1.5.bat`:
-- A full ModRoom game folder.
-- An individual category folder (`custom_futas`, `custom_wives`, or `custom_bedrooms`).
-- Multiple category folders selected and dragged together.
-- An individual character pack folder.
-- A mod `.zip` archive.
-
-### Method 2: Use the "input" Folder
-Drop your ModRoom mod folders or `.zip` files into the `input` folder and double-click `Convert_ModRoom_to_1.5.bat`.
-
-### Method 3: Merge Directly into Your v1.5 Game (Advanced)
-You can point the converter directly at your existing Wife's Bedroom v1.5 installation so converted mods are placed directly into your `custom` folder:
-```
-python ModRoom_to_WB_1.5.py "path/to/custom_futas" --dest "path/to/wifes_bedroom_win1_5"
+```bash
+python Modded_to_WB_1.5.py input_folder
+python Modded_to_WB_1.5.py -d "C:/Games/WB1.5" -y my_pack.zip
+python Modded_to_WB_1.5.py --approximate --clean input_folder
+python Modded_to_WB_1.5.py --dry-run input_folder
 ```
 
----
-
-## Command Line Flags
-
-| Flag | Purpose |
-|---|---|
-| `-d`, `--dest <path>` | Specify a custom destination folder (e.g. your v1.5 game directory). |
-| `--clean` | Cleans target custom/ folder before copying to ensure a fresh, clean export. |
-| `-y`, `--yes` | Runs non-interactively without prompting (ideal for automated batch scripts). |
-
----
-
-## Folder Layout
-
-```
-ModRoom_to_WB_1.5_Converter/
-├── Convert_ModRoom_to_1.5.bat   (One-click Windows launcher)
-├── ModRoom_to_WB_1.5.py         (Conversion engine)
-├── README.md                    (This guide)
-├── input/                       (Drop mod folders or .zip files here)
-└── output/
-    └── custom/                  (Converted game-ready v1.5 mods)
-        ├── <character_name>/    (Lovers with custom_data.futa)
-        ├── <partner_name>/      (Partners with custom_data.spouse)
-        └── <bedroom_name>/      (Bedrooms with custom_data.bedroom)
-```
+See DETAILS.md for all options.
+For full technical details, frame counts and descriptor rules, see `DETAILS.md`.
