@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 title Modded to WB 1.5 Mod Converter v1.2.1
 cd /d "%~dp0"
@@ -11,7 +11,7 @@ echo.
 
 if not "%~1"=="" goto :has_args
 if exist "input" (
-    for /f %%A in ('dir /b /a "input\*" 2^>nul') do (
+    for /f "delims=" %%A in ('dir /b /a "input\*" 2^>nul ^| findstr /v /i /x ".gitkeep"') do (
         echo [*] Auto-detected files in input/ folder.
         goto :run_default
     )
@@ -25,14 +25,16 @@ exit /b 1
 
 :has_args
 python "Modded_to_WB_1.5.py" %*
+set "RC=%ERRORLEVEL%"
 goto :finish
 
 :run_default
 python "Modded_to_WB_1.5.py"
+set "RC=%ERRORLEVEL%"
 goto :finish
 
 :finish
 echo.
 echo Press any key to exit...
 pause >nul
-exit /b 0
+exit /b %RC%

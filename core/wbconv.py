@@ -212,9 +212,16 @@ def _to_rgba(line, w, ctype, plte, trns):
     out = bytearray(w * 4)
     if ctype == 2:
         out[0::4], out[1::4], out[2::4], out[3::4] = line[0::3], line[1::3], line[2::3], b"\xff" * w
+        if trns and len(trns) >= 6:  # colour key: 16-bit samples, low byte at 8-bit depth
+            key = bytes((trns[1], trns[3], trns[5]))
+            for i in range(w):
+                if line[i * 3:i * 3 + 3] == key:
+                    out[i * 4 + 3] = 0
     elif ctype == 0:
         out[0::4] = out[1::4] = out[2::4] = line
         out[3::4] = b"\xff" * w
+        if trns and len(trns) >= 2:
+            out[3::4] = line.translate(bytes(0 if v == trns[1] else 255 for v in range(256)))
     elif ctype == 4:
         out[0::4] = out[1::4] = out[2::4] = line[0::2]
         out[3::4] = line[1::2]
@@ -269,6 +276,24 @@ def pad_width(img: Image, new_w: int) -> Image:
 
 def crop_width(img: Image, new_w: int) -> Image:
     return Image(new_w, img.height, [bytearray(r[:new_w * 4]) for r in img.rows])
+
+
+def _alias_strip(src, dst, src_frames, dst_frames):
+    """Copy a cowgirl strip to stand in for the missing one, with the frame count the other pose is cut into, at the
+    source's own frame width (high-res packs too). The copy is a generated stand-in, so trimming it loses nothing of the
+    author's file. A strip that does not divide into src_frames is copied unchanged."""
+    shutil.copyfile(str(src), str(dst))
+    try:
+        img = read_png(dst)
+        fw = frame_width_of(img.width, src_frames)
+        if fw:
+            want = dst_frames * fw
+            if img.width < want:
+                write_png(dst, pad_width(img, want))
+            elif img.width > want:
+                write_png(dst, crop_width(img, want))
+    except (PngError, OSError, zlib.error):
+        pass
 
 
 # --------------------------------------------------------------------------- small safe helpers
@@ -490,7 +515,9 @@ class Ini:
         return True
 
     def to_bytes(self):
-        out = self.eol.join(self.lines).encode(self.enc)
+        # A latin-1 file keeps its encoding (existing bytes must not change); an added value it cannot hold,
+        # such as a Japanese pack name, gets "?" for those characters instead of crashing the conversion.
+        out = self.eol.join(self.lines).encode(self.enc, errors="replace")
         return (b"\xef\xbb\xbf" + out) if self.bom else out
 
 
@@ -1020,21 +1047,9 @@ def from_v15(pack_dir, kind, target, name, approximate=False) -> Result:
         rc_file = pack_dir / "custom_wife_reverse_cowgirl_0.png"
         fc_file = pack_dir / "custom_wife_cowgirl_0.png"
         if rc_file.exists() and not fc_file.exists():
-            shutil.copyfile(str(rc_file), str(fc_file))
-            try:
-                img_fc = read_png(fc_file)
-                if img_fc.width < 11 * FRAME_W:
-                    write_png(fc_file, pad_width(img_fc, 11 * FRAME_W))
-            except Exception:
-                pass
+            _alias_strip(rc_file, fc_file, 10, 11)
         elif fc_file.exists() and not rc_file.exists():
-            shutil.copyfile(str(fc_file), str(rc_file))
-            try:
-                img_rc = read_png(rc_file)
-                if img_rc.width < 10 * FRAME_W:
-                    write_png(rc_file, pad_width(img_rc, 10 * FRAME_W))
-            except Exception:
-                pass
+            _alias_strip(fc_file, rc_file, 11, 10)
 
         # Ensure portrait alias exists for ModRoom
         p_std = pack_dir / "custom_portrait.png"
