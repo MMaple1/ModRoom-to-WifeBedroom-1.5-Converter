@@ -495,8 +495,11 @@ class Ini:
 _POSE_MAP = [(("mating_press", "origin_x"), ("sprite", "mating_press_origin_x")), (("mating_press", "origin_y"), ("sprite", "mating_press_origin_y")),
              (("deepthroat", "origin_x"), ("sprite", "deepthroat_origin_x")), (("deepthroat", "origin_y"), ("sprite", "deepthroat_origin_y")),
              (("reverse_cowgirl", "origin_x"), ("sprite", "cowgirl_origin_x")), (("reverse_cowgirl", "origin_y"), ("sprite", "cowgirl_origin_y"))]
-_V15_MAP = [(("xray", "origin_x"), ("sprite", "xray_x")), (("xray", "origin_y"), ("sprite", "xray_y")),
-            (("deepthroat", "origin_y"), ("sprite", "deepthroat_origin_y"))]
+_V15_MAP = [(("xray", "origin_x"), ("sprite", "xray_x")), (("xray", "origin_y"), ("sprite", "xray_y"))]
+
+# v1.5 draws a partner's deepthroat strip where the vanilla sWifeDeepthroat goes (origin y 150 in both games);
+# Deeproom's spouse loader draws it 70 px higher (legacy_dt_y_offset = -70). Measured 2026-11-17 from both games' code.
+DT_V15_TO_DEEPROOM = -70
 
 
 def _derive(ini, pairs, forward=True):
@@ -521,6 +524,28 @@ def _xray_offset(ini):
         ini.add("sprite", "xray_offset_y", f'"{round(y - 84)}"')
 
 
+def _fmt(v):
+    return f'"{v:.6f}"'
+
+
+def _dt_to_deeproom(ini):
+    """[deepthroat] origin_y from a v1.5 partner's [sprite] deepthroat_origin_y (minus 70). Without that key nothing is
+    added: Deeproom then uses the [sprite] origin, as for its own packs (adding v1.5's default 150 drew them 66 px high)."""
+    v = _num(ini.get("sprite", "deepthroat_origin_y"))
+    if v is not None:
+        ini.add("deepthroat", "origin_y", _fmt(v + DT_V15_TO_DEEPROOM))
+
+
+def _dt_to_v15(ini):
+    """[sprite] deepthroat_origin_y for v1.5 from Deeproom's [deepthroat] origin_y (plus 70)."""
+    if ini.get("sprite", "deepthroat_origin_y") is not None:
+        return
+    v = _num(ini.get("deepthroat", "origin_y"))
+    if v is None:
+        return  # no Deeproom deepthroat block: v1.5 uses its own default (150), within 4 px of Deeproom's
+    ini.add("sprite", "deepthroat_origin_y", _fmt(v - DT_V15_TO_DEEPROOM))
+
+
 def _deeproom_extras(ini):
     """Per-pose blocks Deeproom's spouse loader reads, built from a v1.5 partner's [sprite] keys (added only when absent)."""
     def val(sec, key, default):
@@ -531,12 +556,9 @@ def _deeproom_extras(ini):
     # the body's [sprite] origin (100-120 on wide mating-press canvases) drew the X-ray 20-40 px off-centre.
     xx = ini.get("sprite", "xray_x") or '"80.000000"'
     xy = ini.get("sprite", "xray_y") or '"84.000000"'
-    dt = val("sprite", "deepthroat_origin_y", "150.000000")
     for sec in ("mating_press", "reverse_cowgirl"):
         ini.add(sec, "origin_x", ox)
         ini.add(sec, "origin_y", oy)
-    ini.add("deepthroat", "origin_x", ox)
-    ini.add("deepthroat", "origin_y", dt)
     ini.add("xray", "origin_x", xx)
     ini.add("xray", "origin_y", xy)
     ini.add("condom", "condom_y_mpress", val("sprite", "condom_y", "78.000000"))
@@ -556,6 +578,7 @@ def convert_descriptor_bytes(data: bytes, source: str, target: str, name: str = 
             _derive(ini, _POSE_MAP, forward=False)
         _derive(ini, _V15_MAP, forward=False)
         if source == "spouse":
+            _dt_to_deeproom(ini)
             _deeproom_extras(ini)
     elif target == "futa_modded":                 # ModRoom / Deeproom lover: xray offset from v1.5's xray_y
         _xray_offset(ini)
@@ -563,6 +586,8 @@ def convert_descriptor_bytes(data: bytes, source: str, target: str, name: str = 
         if source == "wife":
             _derive(ini, _POSE_MAP, forward=False)
         _derive(ini, _V15_MAP, forward=True)
+        if source == "spouse":
+            _dt_to_v15(ini)
     if target.startswith("v15") and name and ini.get("info", "name") is None:
         ini.add("info", "name", '"' + name.replace('"', "'") + '"')
     return ini.to_bytes() if ini.changed else data

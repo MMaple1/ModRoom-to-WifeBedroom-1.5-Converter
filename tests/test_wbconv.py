@@ -122,7 +122,7 @@ class DescriptorTests(unittest.TestCase):
     def test_v15_to_deeproom_spouse_gets_xray_section(self):
         ini = W.Ini(W.convert_descriptor_bytes(self.V15, "spouse", "spouse"))
         self.assertEqual(ini.get("xray", "origin_x"), "60")
-        self.assertEqual(ini.get("deepthroat", "origin_y"), "150")
+        self.assertEqual(ini.get("deepthroat", "origin_y"), '"80.000000"')  # v1.5 150 - 70
         self.assertEqual(ini.get("sprite", "xray_x"), "60")          # the source key is kept
 
     def test_existing_keys_never_overwritten(self):
@@ -133,9 +133,9 @@ class DescriptorTests(unittest.TestCase):
         data = b'[info]\nname="A"\n[sprite]\norigin_x="80"\norigin_y="84"\nxray_x="60"\nxray_y="90"\n'
         out = W.convert_descriptor_bytes(data, "spouse", "spouse")
         ini = W.Ini(out)
-        for sec, key in (("mating_press", "origin_x"), ("reverse_cowgirl", "origin_y"), ("deepthroat", "origin_y"), ("xray", "origin_x"), ("condom", "condom_y_mpress"), ("gender", "is_male")):
+        for sec, key in (("mating_press", "origin_x"), ("reverse_cowgirl", "origin_y"), ("xray", "origin_x"), ("condom", "condom_y_mpress"), ("gender", "is_male")):
             self.assertIsNotNone(ini.get(sec, key), f"[{sec}] {key}")
-        self.assertEqual(ini.get("deepthroat", "origin_y"), '"150.000000"')       # v1.5 default when absent
+        self.assertIsNone(ini.get("deepthroat", "origin_y"))  # absent: the game uses the [sprite] origin (adding 150 drew it 66 px high)
         self.assertEqual(ini.get("sprite", "xray_offset_y"), '"6"')
         self.assertEqual(out.decode().lower().count("[sprite]"), 1)               # no second [sprite] header
 
