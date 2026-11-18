@@ -1,5 +1,7 @@
 # Modded to WB 1.5 Mod Converter
 
+> **This converter has moved.** It is now developed together with its counterpart in [WB_Converters](https://github.com/MMaple1/WB_Converters), which has the latest version and fixes (including the Deeproom deepthroat repair). This repository is no longer updated.
+
 This converter takes character and room mods made for ModRoom, Deeproom, or FutasRoom and turns them into the unified `custom` folder format used by the original Wife's Bedroom v1.5.
 
 ## Start here
