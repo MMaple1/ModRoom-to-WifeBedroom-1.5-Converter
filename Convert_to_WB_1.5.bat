@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-title Modded to WB 1.5 Mod Converter v1.2
+title Modded to WB 1.5 Mod Converter v1.2.1
 cd /d "%~dp0"
 
 echo ======================================================================
-echo           MODDED TO WB 1.5 MOD CONVERTER v1.2
+echo           MODDED TO WB 1.5 MOD CONVERTER v1.2.1
 echo ======================================================================
 echo.
 
