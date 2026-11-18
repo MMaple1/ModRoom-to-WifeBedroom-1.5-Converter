@@ -24,6 +24,7 @@ import shutil
 import struct
 import sys
 import unicodedata
+import zipfile
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,7 +33,8 @@ from typing import Dict, List, Optional, Tuple
 __all__ = ["PngError", "Image", "read_png", "write_png", "pad_width", "crop_width", "sha256_file",
            "safe_extract", "unique_name", "png_size", "select_frames", "FRAME_MAPS", "Ini", "convert_descriptor_bytes", "Result", "Report",
            "to_v15", "from_v15", "modroom_missing", "detect_format", "FRAMES", "NAMES", "publish_category",
-           "progress", "say", "Spinner", "strip_frames", "frame_width_of", "pack_notes"]
+           "progress", "say", "Spinner", "strip_frames", "frame_width_of", "pack_notes",
+           "repair_deepthroat_bytes", "repair_deepthroat_folder", "repair_deepthroat_main"]
 
 
 
@@ -544,6 +546,119 @@ def _dt_to_v15(ini):
     if v is None:
         return  # no Deeproom deepthroat block: v1.5 uses its own default (150), within 4 px of Deeproom's
     ini.add("sprite", "deepthroat_origin_y", _fmt(v - DT_V15_TO_DEEPROOM))
+
+
+_OLD_DT_DEFAULT = '"150.000000"'
+
+
+def repair_deepthroat_bytes(data: bytes) -> bytes:
+    """Undo the [deepthroat] block converters before 2026-11-17 wrote into Deeproom partner descriptors.
+
+    Those versions added origin_x (copied from [sprite] origin_x) and origin_y, which was either v1.5's default
+    "150.000000" (Deeproom then drew the sprite 66 px high) or a 1:1 copy of [sprite] deepthroat_origin_y (70 px high).
+    Only a single block in exactly that shape is touched; anything hand-made (other keys, comments, other values)
+    is left alone. Invented block -> removed (the game uses the [sprite] origin, as for native packs); copied
+    value -> that value minus 70. Returns the same bytes object when nothing matches. Safe to run twice."""
+    ini = Ini(data)
+    starts = [i for i, line in enumerate(ini.lines)
+              if (m := _SECTION.match(line)) and m.group(1).strip().lower() == "deepthroat"]
+    if len(starts) != 1:
+        return data
+    start = starts[0]
+    end = next((i for i in range(start + 1, len(ini.lines)) if _SECTION.match(ini.lines[i])), len(ini.lines))
+    keys = {}
+    for i in range(start + 1, end):
+        line = ini.lines[i]
+        if not line.strip():
+            continue
+        m = _KEYVAL.match(line)
+        k = m.group(1).strip().lower() if m else None
+        if k is None or k in keys:
+            return data  # comment, stray text or a repeated key: not what the old converter wrote
+        keys[k] = (i, m.group(2))
+    if set(keys) != {"origin_x", "origin_y"} or keys["origin_x"][1] != ini.get("sprite", "origin_x"):
+        return data
+    dt_line, dt = keys["origin_y"]
+    v15 = ini.get("sprite", "deepthroat_origin_y")
+    if v15 is not None and dt == v15:
+        v = _num(v15)
+        if v is None:
+            return data
+        ini.lines[dt_line] = f"origin_y={_fmt(v + DT_V15_TO_DEEPROOM)}"
+    elif v15 is None and dt == _OLD_DT_DEFAULT:
+        while end > start + 1 and not ini.lines[end - 1].strip():
+            end -= 1  # keep the blank line(s) that separate the next section
+        del ini.lines[start:end]
+        if 0 < start < len(ini.lines) and not ini.lines[start - 1].strip() and not ini.lines[start].strip():
+            del ini.lines[start]  # no double blank line where the block was
+    else:
+        return data
+    return ini.to_bytes()
+
+
+def repair_deepthroat_folder(root, apply=False, backup=None):
+    """Run repair_deepthroat_bytes over every custom_data.spouse under `root`.
+    Returns the descriptor paths that need (or, with apply=True, got) the repair. With apply=True every original is
+    first stored in the `backup` zip (required, must not exist yet) under its path relative to `root`."""
+    root = Path(root)
+    real_root = root.resolve()
+    todo = []
+    for p in sorted(root.rglob("custom_data.spouse")):
+        if p.is_symlink() or not p.is_file() or real_root not in p.resolve().parents:  # 3.8: no is_relative_to
+            continue  # never write through a link or outside the folder
+        data = p.read_bytes()
+        new = repair_deepthroat_bytes(data)
+        if new is not data:
+            todo.append((p, data, new))
+    if apply and todo:
+        if backup is None:
+            raise ValueError("apply=True needs a backup zip path")
+        backup = Path(backup)
+        if backup.exists():
+            raise FileExistsError(f"backup already exists: {backup}")
+        with zipfile.ZipFile(backup, "w", zipfile.ZIP_DEFLATED) as z:
+            for p, data, _ in todo:
+                z.writestr(p.relative_to(root).as_posix(), data)
+        for p, _, new in todo:  # each file is replaced whole, so a failure never leaves a half-written descriptor
+            tmp = p.with_name(p.name + ".repair_tmp")
+            try:
+                tmp.write_bytes(new)
+                os.replace(tmp, p)
+            finally:
+                if tmp.exists():
+                    tmp.unlink()
+    return [p for p, _, _ in todo]
+
+
+def repair_deepthroat_main(argv=None):
+    """Command line for repair_deepthroat_folder: `<folder> [--apply]`. Dry run unless --apply."""
+    import argparse
+    import time
+    ap = argparse.ArgumentParser(description="Fix Deeproom partners whose deepthroat sprite sits too high after "
+                                             "conversion with a converter older than 2026-11-17.")
+    ap.add_argument("folder", help="a custom_wives folder (or any folder above the partner packs)")
+    ap.add_argument("--apply", action="store_true", help="write the fixes (default: only list them)")
+    a = ap.parse_args(argv)
+    root = Path(a.folder)
+    if not root.is_dir():
+        ap.error(f"not a folder: {root}")
+    backup = root.parent / f"{root.name}_deepthroat_backup_{time.strftime('%Y%m%d_%H%M%S')}.zip" if a.apply else None
+    try:
+        found = repair_deepthroat_folder(root, apply=a.apply, backup=backup)
+    except OSError as e:  # includes FileExistsError for the backup; files already replaced stay fixed (re-run is safe)
+        print(f"Stopped: {e}")
+        if backup is not None and backup.exists():
+            print(f"Originals of every file it was going to change are in {backup}")
+        return 1
+    for p in found:
+        print(f"  {p.relative_to(root)}")
+    if not found:
+        print("Nothing to fix.")
+    elif a.apply:
+        print(f"Fixed {len(found)} partner(s). Originals saved in {backup}")
+    else:
+        print(f"{len(found)} partner(s) need the fix. Run again with --apply to fix them (originals are backed up).")
+    return 0
 
 
 def _deeproom_extras(ini):

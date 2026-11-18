@@ -4,6 +4,13 @@ All notable changes to the **Modded to WB 1.5 Mod Converter** tool are documente
 
 ---
 
+## [Version 1.2.1] - 2026-11-17
+
+### Fixes
+- **Partner deepthroat height.** A Deeproom partner's `[deepthroat] origin_y` was copied to v1.5's `[sprite] deepthroat_origin_y` unchanged, but Deeproom draws partner deepthroat 70 px higher than v1.5, so the value now gets +70. Packs without a `[deepthroat]` block get no value (v1.5 uses its own default).
+
+---
+
 ## [Version 1.2.0] - 2026-11-16
 
 ### Highlights

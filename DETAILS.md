@@ -49,7 +49,7 @@ Descriptor conversion only **adds** keys and never changes a value; line endings
 - `[info]` gets `name` (from the folder name, clamped by the game at 36 characters), `desc` and `author` when absent.
 - **Bidirectional Descriptor Mapping**:
   - `[xray] origin_x / origin_y` or `[sprite] xray_offset_y` -> `[sprite] xray_x / xray_y`
-  - `[deepthroat] origin_y` -> `[sprite] deepthroat_origin_y`
+  - `[deepthroat] origin_y` -> `[sprite] deepthroat_origin_y` + 70 (Deeproom draws partner deepthroat 70 px higher than v1.5; added only when the pack has a `[deepthroat]` block)
   - `[condom] condom_y_mpress / condom_y_cowgirls` -> `[sprite] condom_y / standing_condom_y`
 
 ---
